@@ -74,6 +74,10 @@ h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; li
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn.ghost { background: transparent; border-color: transparent; padding-inline: 8px; color: var(--muted); }
 .btn.ghost:hover { color: var(--ink); }
+.btn.sm { padding: 5px 12px; font-size: 13px; }
+.theme-dot { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid currentColor; background: linear-gradient(90deg, currentColor 50%, transparent 50%); }
+.theme-dot.dark { background: currentColor; }
+.theme-dot.light { background: transparent; }
 .chip {
   display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
   padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent);
@@ -391,6 +395,26 @@ function secStats(items) {
   return { g, r, n: items.length };
 }
 
+/* ---------------- Theme: auto (follow the system or host) → dark → light ---------------- */
+const THEME_KEY = 'aptis-luyen-de:theme';
+const hostTheme = document.documentElement.getAttribute('data-theme');
+const THEME_NAMES = { auto: 'Tự động', dark: 'Tối', light: 'Sáng' };
+let theme = 'auto';
+try { const t = localStorage.getItem(THEME_KEY); if (t === 'dark' || t === 'light') theme = t; } catch (e) { /* storage blocked */ }
+const themeBtn = () => `<button class="btn sm" data-act="theme" title="Đổi giao diện sáng / tối"><span class="theme-dot ${theme}"></span>Giao diện: ${THEME_NAMES[theme]}</button>`;
+function applyTheme() {
+  const root = document.documentElement;
+  if (theme !== 'auto') root.setAttribute('data-theme', theme);
+  else if (hostTheme) root.setAttribute('data-theme', hostTheme);
+  else root.removeAttribute('data-theme');
+  document.querySelectorAll('[data-act="theme"]').forEach(b => { b.outerHTML = themeBtn(); });
+}
+function cycleTheme() {
+  theme = theme === 'auto' ? 'dark' : theme === 'dark' ? 'light' : 'auto';
+  try { theme === 'auto' ? localStorage.removeItem(THEME_KEY) : localStorage.setItem(THEME_KEY, theme); } catch (e) { /* storage blocked */ }
+  applyTheme();
+}
+
 /* ---------------- App state ---------------- */
 const S = { view: 'home', sec: null, list: [], i: 0, title: '', filter: 'all', shuffle: true, st: {}, covered: false, wrongMode: false, speed: 1 };
 const app = document.getElementById('app');
@@ -414,7 +438,7 @@ function renderHome() {
     <div class="eyebrow">British Council · Aptis General</div>
     <h1>Aptis Luyện Đề<span>.</span></h1>
     <p>${DATA.sections.length} bộ đề, ${ALL.length} câu, lấy từ các phòng Wayground của lớp ngày ${esc(DATA.generated.split('-').reverse().join('/'))}. Làm từng câu, xem đáp án và lời thoại ngay sau khi trả lời, rồi ôn lại các câu sai.</p>
-    <div class="mast-row"><span id="sync-chip" class="chip"></span></div>
+    <div class="mast-row"><span id="sync-chip" class="chip"></span>${themeBtn()}</div>
   </header>
   <section class="summary" aria-label="Tổng quan tiến độ">
     <div><span class="eyebrow">Đã làm</span><span class="big num">${done}<span class="sub"> / ${ALL.length}</span></span><span class="sub">câu trong tất cả bộ đề</span></div>
@@ -481,6 +505,7 @@ function openPractice(list, title, sec, startAt) {
       </div>
       <label class="toggle"><input type="checkbox" id="opt-shuffle" ${S.shuffle ? 'checked' : ''}> Xáo đáp án</label>
       ${sec ? `<button class="btn" data-act="key" data-sec="${sec.idx}">Đáp án</button>` : ''}
+      ${themeBtn()}
     </div>
     <div class="practice">
       <div id="sheet-slot" style="min-width:0"></div>
@@ -747,6 +772,7 @@ function renderKey() {
       <h2>Đáp án · ${esc(sec.title)}</h2>
       <span class="spacer"></span>
       <label class="toggle"><input type="checkbox" id="opt-cover" ${S.covered ? 'checked' : ''}> Che đáp án (chạm để xem)</label>
+      ${themeBtn()}
       <button class="btn primary" data-act="start" data-sec="${sec.idx}">Luyện tập</button>
     </div>
     ${sec.note ? `<p class="row-note" style="margin:0">${sec.key ? '<b>Học thuộc.</b> ' : ''}${esc(sec.note)}</p>` : ''}
@@ -783,6 +809,7 @@ app.addEventListener('click', e => {
   if (t.dataset.unpick && it) { const st = itemState(it); if (!st.checked) { st.picked = st.picked.filter(v => v !== +t.dataset.unpick); renderBody(it); } return; }
   switch (act) {
     case 'home': renderHome(); break;
+    case 'theme': cycleTheme(); break;
     case 'start': { const s = DATA.sections[+t.dataset.sec]; openPractice(s.items, s.title, s, Store.d.pos[s.code] || 0); break; }
     case 'resume': { const s = DATA.sections.find(x => x.code === Store.d.last); if (s) openPractice(s.items, s.title, s, Store.d.pos[s.code] || 0); break; }
     case 'wrong': openPractice(ALL.filter(x => { const r = resOf(x); return r && !r[0]; }), 'Ôn câu sai', null, 0); break;
@@ -821,6 +848,7 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowLeft') { e.preventDefault(); go(S.i - 1); }
 });
 
+applyTheme();
 Store.load();
 renderHome();
 Store.connect();
