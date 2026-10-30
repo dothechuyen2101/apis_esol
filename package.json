@@ -1,0 +1,8 @@
+{
+  "name": "aptis-luyen-de",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@vercel/functions": "^3.10.5"
+  }
+}
